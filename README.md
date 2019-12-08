@@ -105,16 +105,117 @@ netty 是对 jdk NIO 进行了再次包装处理，简化 java 网络应用程�
 </dependency>
 ```
 
-2. NettyServer
+2. 编写 netty 服务端启动代码
+```java
+ public static void main(String[] args) throws Exception {
+        EventLoopGroup bossGroup = new NioEventLoopGroup(); //[1]
+        EventLoopGroup workGroup = new NioEventLoopGroup();
+        try{
+            ServerBootstrap serverBootstrap = new ServerBootstrap();//[2]
+            serverBootstrap.group(bossGroup,workGroup)//[3]
+                    .channel(NioServerSocketChannel.class)//[4]
+                    .childHandler(new ServerInitializer())//[5]
+                    .option(ChannelOption.SO_BACKLOG, 128)          // (6)
+                    .childOption(ChannelOption.SO_KEEPALIVE, true); // (7);
 
-
-```mermaid
-graph TD;
-A-->B;
-A-->C;
-B-->D;
-C-->D;
+            ChannelFuture channelFuture = serverBootstrap.bind(8080).sync();//[8]
+            channelFuture.channel().closeFuture().sync();//[9]
+        }finally {
+            bossGroup.shutdownGracefully();//[10]
+            workGroup.shutdownGracefully();
+        }
+    }
 ```
+上面这段代码展示了 netty 服务端启动的一个基本步骤</br>
+
+> ## 1. NioEventLoopGroup
+> 初始化主从事件循环组，可简单理解为两个“线程池”，主线程池用于处理客户端的连接，从线程池用于网络 I/O 数据的收发
+
+
+> ## 2. ServerBootstrap
+> 初始化 ServerBootstrap ， 是 netty 服务端的启动类 , 聚合 netty 各种组件，完成 netty 服务器的启动
+
+> ## 3. serverBootstrap.group
+>设置 serverBootstrap 启动线程组
+
+>## 4. serverBootstrap.channel
+>设置 netty 服务器的 channel (通道) 类型
+
+> ## 5. serverBootstrap.childHandler
+>初始化客户端与服务端连接通道的数据处理器，一般包括数据的编码器、解码器、数据的业务逻辑处理器，ServerInitializer 是我们自定义的通道处理器初始化器
+
+>## 6. serverBootstrap.option
+>配置 ServerSocketChannel 通道的选项，即服务器生成用于接收客户端连接的通道选项
+
+> ## 7. serverBootstrap.childOption
+> 配置 socketChannel 通道的选项，客户端发与服务器连接通道的选项
+
+> ## 8. serverBootstrap.bind(8080).sync()
+> 绑定端口并等待接收客户端的连接
+
+> ## 9. channelFuture.channel().closeFuture().sync()
+> 等待服务器通道关闭
+
+
+2. 编写自定义通道处理器初始化器
+```java
+public class ServerInitializer extends ChannelInitializer<SocketChannel> {
+    protected void initChannel(SocketChannel socketChannel) throws Exception {
+        ChannelPipeline pipeline = socketChannel.pipeline();
+        pipeline.addLast("HttpServerCodecn",new HttpServerCodec());
+        pipeline.addLast("HttpServerHandler",new HttpServerHandler());
+    }
+}
+```
+上面是通道初始化器的一个基本格式,主要就是添加各种 I/O 处理器
+
+> ChannelInitializer：通道初始化器 需要继承 ChannelInitializer 并实现 initChannel 方法，SocketChannel 是一个可选的通道类型
+
+> ChannelPipeline：Channel 是通过 ChannelPipeline 添加的处理器，对 I/O 数据处理。数据的处理流程一般为如下：</br>
+客户端发送的数据 --> 数据解码器 --> 业务逻辑处理器 --> 数据编码器 --> 服务端发送数给客户端
+
+> HttpServerCodecn: netty 本身已经实现的 http 协议编解码，包括 httpRequet 解码器 和 httpResponse 响应编码器
+
+> HttpServerHandler：这个是我们自定义的业务逻辑处理器，这里只是简单的向浏览器 发送 Hello World
+
+3. 自定义业务逻辑处理器
+```java
+public class HttpServerHandler extends SimpleChannelInboundHandler<HttpObject> {
+    protected void channelRead0(ChannelHandlerContext channelHandlerContext, HttpObject httpObject) throws Exception {
+        ByteBuf msg = Unpooled.copiedBuffer("Hello World", CharsetUtil.UTF_8);
+        FullHttpResponse response = new DefaultFullHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK,msg);
+        response.headers().set(HttpHeaderNames.CONTENT_TYPE,"text/plain");
+        response.headers().set(HttpHeaderNames.CONTENT_LENGTH,msg.readableBytes());
+
+        channelHandlerContext.channel().writeAndFlush(response);
+    }
+}
+```
+上面代码，定义了一个简单的业务逻辑处理器，向浏览器发送一串文字
+> SimpleChannelInboundHandler : netty 定义了好几种入站处理器，供开发者根据需要选择不同的入站处理器接收数据并作出处理, SimpleChannelInboundHandler 是一个泛型，用于接收不同的数据格式，HttpObject 表示经过解码器的处理之后，转换成HttpObject 对应的数据格式，由于是 http 协议，故我们用 HttpObject 来存放浏览器的请求信息
+
+> ChannelHandlerContext: 通道处理器上下文，获取到对应的 Channel 并向客户达发送数据
+
+> FullHttpResponse: netty 定义的 http 响应数据格式
+
+4. 启动服务，打开浏览器发送请求
+
+> http://127.0.0.1:8080/ </br>
+> 可以看到浏览器显示：  Hello World
+
+
+5. 小结
+通过 Hello World 熟悉 netty 开发的一个基本步骤，主要分为三步
+* 通过 ServerBootstrap ，启动 netty 服务器
+* 编写 Channel 处理器初始化器，把 编码器、解码器、业务处理器等处理器加入到 ChannelPipeLine 对 I/O 数据进行处理
+* 根据需要自定义 编解码器、业务处理器
+
+
+
+
+
+
+
 
 
 
