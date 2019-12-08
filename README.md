@@ -35,6 +35,8 @@ netty 的官网中有这么一句话
 
 简单理解 netty 是一个异步基于事件驱动的高性能网络框架，并且 netty 本身实现了大量的常见协议，简化了应用程序的开发
 
+&nbsp; 
+
 异步，与我们平常编写的代码有点不太一样，netty 中所有的请求都是异步的，对于请求结果、请求成功与否并不能马上返回，而是通过设置监听器回调来获得请求结果
 
 事件驱动，所有的网络请求在网络通信里无非是 客户端发起连接 服务端接收连接 客户端发送数据 服务端接收数据 服务端发送数据，所以 netty 把这些当作一个一个事件进行处理，当有一个连接事件发生的时候，netty 会通过回调的方式告知应用程序 有客户端连接了
@@ -64,6 +66,64 @@ netty 是对 jdk NIO 进行了再次包装处理，简化 java 网络应用程�
 * Flink、Spark等经典的大数据应用程序，也是基于 netty 进行通信
 * Moquette MQTT协议实现，基于 netty 进行协议的编码解码
 * ......
+
+
+
+&nbsp; 
+# <a name="2">netty 第一个应用程序</a>
+
+使用 netty 开发一个简单的 hello world 应用程序，对于初学者来说并不是那么的轻松。接下来，将一步一步实现 netty 第一个应用程序的开发，了解 netty 的开发流程
+
+&nbsp;
+
+> 完整代码见  src/appone
+
+&nbsp;
+
+## 1.  项目结构
+
+```
+|-- appone
+    |-- pom.xml
+    |-- src
+        |-- main
+            |-- java
+                |-- cnt
+                    |-- HttpServerHandler.java
+                    |-- NettyServer.java
+                    |-- ServerInitializer.java
+```
+
+## 2. 编写代码
+
+1. pom.xml 文件引入 netty jar 包依赖
+```xml
+ <dependency>
+    <groupId>io.netty</groupId>
+    <artifactId>netty-all</artifactId>
+    <version>4.1.43.Final</version>
+</dependency>
+```
+
+2. NettyServer
+
+
+```mermaid
+graph TD;
+A-->B;
+A-->C;
+B-->D;
+C-->D;
+```
+
+
+
+
+
+
+
+
+
 
 
 
