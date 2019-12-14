@@ -302,6 +302,38 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 
 
+&nbsp;
+# <a name="6">netty socket 编程 </a>
+
+聊天程序大家都很熟悉，本节教程将利用 netty 构建一个简单聊天程序
+
+
+> 完整代码见 src/appchat
+
+## netty 客户端与服务器概览
+![](./res/chatView.png)
+
+
+## 项目结构
+```
+|-- undefined
+    |-- pom.xml
+    |-- src
+        |-- main
+            |-- java
+                |-- cnt
+                    |-- client
+                    |   |-- Client.java
+                    |   |-- ClientHandler.java
+                    |   |-- ClientInitializer.java
+                    |-- server
+                        |-- HttpServerHandler.java
+                        |-- NettyServer.java
+                        |-- ServerInitializer.java
+```
+
+
+
 
 
 
