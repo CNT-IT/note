@@ -302,6 +302,86 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 
 
+
+
+
+&nbsp;
+# <a name="4"> netty 重要组件介绍 </a>
+
+熟知 netty 的核心组件，在开发中能更加的游刃有余，本节将对 netty 的核心组件做一个简单的介绍
+
+## 1. 核心组件概览
+![](./res/coreComponent.png)
+
+
+## 2. Channel、EventLoop、ChannelFuture
+
+`Channel`、`EventLoop`、`ChannelFuture` 是 netty 关于网络的抽象
+
+* `Channel` ---> sockets
+
+* `EventLoop` ---> control flow、multithreading、concurrency
+
+* `ChannelFuture` ---> asynchronous notification
+
+### 2.1 Interface Channel
+
+网络的最基本操作
+
+* bing() ---- 绑定端口
+
+* connect() ---- 连接
+
+* read() ---- 读数据
+
+* write() ---- 写数据
+
+在 java 中具体的实现是基于 java 网络套接字， 即 Socket 类
+
+Channel 接口是对网络基本操作的再次抽象，相对于直接操作 Socket ，其主要目的是减轻开发的复杂度
+
+目前 netty 提供的相关实现类主要有：
+
+* EmbeddedChannel ---- Netty 提供的用于 ChannelHandler 数据入站出站过程的测试
+
+* LocalServerChannel ---- Netty 提供的用于同一个 JVM 内部实现 client 和 server 的通信
+
+* NioDatagramChannel ---- Netty 提供的用于 UDP 报文发送的 Channel
+
+* NioSctpChannel  ----  Netty 提供的用于 sctp 协议的报文传输
+
+* NioSockerChannel  ---- Netty 提供的用于 TCP 协议的报文传输
+
+
+### 2.2 Interface EventLoop
+
+EventLoop 是定义了如何处理一个连接在其生命周期内发生的事件
+
+Channels、EventLoops、Threads、EventLoopGroups 关系
+
+* 一个 EventLoopGroup 包含了一个或者多个 EventLoop
+
+* 一个 EventLoop 在其生命周期会绑定一个线程
+
+* 所有的 I/O 事件都会被 EventLoop 所绑定的线程所处理
+
+* 一个 Channel 在其生命周期内会注册一个 EventLoop
+
+* 一个 EventLoop 会被分配给一个或者多个 Channel
+
+> netty 的这种设计，一个 Channel 的所有 I/O 将由同一个线程进行处理
+
+### 2.3 Interface ChannelFuture
+
+关于 I/O 的操作，在 netty 中全都是异步处理，要想知道 I/O 的操作结果是需要借助 netty 提供的 ChannelFuture，添加一个 ChannelFutureListener 进行监听
+
+
+
+
+
+
+
+
 &nbsp;
 # <a name="6">netty socket 编程 </a>
 
@@ -316,7 +396,7 @@ public class HttpServerHandler extends SimpleChannelInboundHandler<HttpObject> {
 
 ## 项目结构
 ```
-|-- undefined
+|-- appchat
     |-- pom.xml
     |-- src
         |-- main
@@ -526,6 +606,142 @@ CMAKE_SOURCE_DIR 源码树的顶层路径
 
 
 
+&nbsp; 
+# <a name="mqtt">Mqtt3.1 报文格式 </a>
+
+[mqtt协议](http://public.dhe.ibm.com/software/dw/webservices/ws-mqtt/mqtt-v3r1.html#fixed-header)
+
+
+## mqtt 消息格式
+
+* 固定头部
+
+* 可变头部
+
+* 消息体
+
+### 固定头部
+固定头部
+<table border=2>
+  <tr>
+     <td>bit</td>
+     <td>7</td>
+     <td>6</td>
+     <td>5</td>
+     <td>4</td>
+     <td>3</td>
+     <td>2</td>
+     <td>1</td>
+     <td>0</td>
+  </tr>
+
+  <tr>
+    <td>byte 1</td>
+     <td colspan=4>Message Type</td>
+     <td>DUP Flag</td>
+     <td colspan=2>Qos Level</td>
+     <td>RETAIN</td>
+  </tr>
+
+  <tr>
+     <td>byte 2</td>
+     <td colspan=8 align = center>Remaining Length</td>
+  </tr>
+</table>
+
+#### Byte 1
+Contains the Message Type and Flags (DUP, QoS level, and RETAIN) fields.
+#### Byte 2
+(At least one byte) contains the Remaining Length field.</br>
+
+The fields are described in the following sections. All data values are in big-endian order: higher order bytes precede lower order bytes. A 16-bit word is presented on the wire as Most Significant Byte (MSB), followed by Least Significant Byte (LSB).
+
+### Message Type
+
+Mnemonic   | Enumeration | Description
+---------  |-------------|------------
+Reserved   | 0           |  Reserved  
+CONNECT    | 1           | Client request to connect to Server
+CONNACK    | 2           | Connect Acknowledgment
+PUBLISH    | 3           | Publish message
+PUBACK     | 4           | Publish Acknowledgment
+PUBREC     | 5           | Publish Received (assured delivery part 1)
+PUBREL     | 6           | Publish Release (assured delivery part 2)
+PUBCOMP    | 7           | Publish Complete (assured delivery part 3)
+SUBSCRIBE  | 8           | Client Subscribe request
+SUBACK     | 9           | Subscribe Acknowledgment
+UNSUBSCRIBE| 10           | Client Unsubscribe request
+UNSUBACK   | 11           | Unsubscribe Acknowledgment
+PINGREQ    | 12           | PING Request
+PINGRESP   | 13           | PING Response
+DISCONNECT | 14           | Client is Disconnecting
+Reserved   | 15           | Reserved
+
+
+### Flags
+
+Name     | Description 
+---------|-------------
+DUP      | Duplicate delivery         
+QoS      | Quality of Service   
+RETAIN   | RETAIN flag   
+
+> DUP
+>> Position: byte 1, bit 3.</br>
+>> This flag is set when the client or server attempts to re-deliver a `PUBLISH`, `PUBREL`, `SUBSCRIBE` or `UNSUBSCRIBE` message. This applies to messages where the value of QoS is greater than zero (0), and an acknowledgment is required. When the DUP bit is set, the variable header includes a Message ID.
+The recipient should treat this flag as a hint as to whether the message may have been previously received. It should not be relied on to detect duplicates.
+
+> QoS
+>> Position: byte 1, bits 2-1.
+>> This flag indicates the level of assurance for delivery of a PUBLISH message. The QoS levels are shown in the table below.</br>
+
+QoS value | bit 2 |bit 1|Description
+--------- |-------| ----|----------
+0         | 0     | 0   |At most once, Fire and Forget，  <=1
+1         | 0     | 1   |At least once, Acknowledged delivery，  >=1
+2         | 1     | 0   |Exactly once, Assured delivery，  =1
+3         | 1     | 1   |Reserved
+
+
+> RETAIN
+>>Position: byte 1, bit 0.</br>
+This flag is only used on PUBLISH messages. When a client sends a PUBLISH to a server, if the Retain flag is set (1), the server should hold on to the message after it has been delivered to the current subscribers.</br></br>
+When a new subscription is established on a topic, the last retained message on that topic should be sent to the subscriber with the Retain flag set. If there is no retained message, nothing is sent</br></br>
+This is useful where publishers send messages on a "report by exception" basis, where it might be some time between messages. This allows new subscribers to instantly receive data with the retained, or Last Known Good, value.</br></br>
+When a server sends a PUBLISH to a client as a result of a subscription that already existed when the original PUBLISH arrived, the Retain flag should not be set, regardless of the Retain flag of the original PUBLISH. This allows a client to distinguish messages that are being received because they were retained and those that are being received "live".</br></br>
+Retained messages should be kept over restarts of the server.</br></br>
+A server may delete a retained message if it receives a message with a zero-length payload and the Retain flag set on the same topic.
+
+### Remaining Length
+
+Represents the number of bytes remaining within the current message, including data in the variable header and the payload.
+
+
+
+
+
+
+
+[mqttv3.3.1.1](http://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html#_Toc398718030)
+
+
+## 连接报文
+
+<table border>
+    <tr>
+        <td rowspan = 3>请求头</td>
+    </tr>
+    <tr>
+      <td rowspan=4>固定头</td>
+    </tr>
+    <tr>
+        <td >可变头</td>
+    </tr>
+
+
+     
+   
+</table>
 
 
 
@@ -535,7 +751,130 @@ CMAKE_SOURCE_DIR 源码树的顶层路径
 
 
 
+## clion ndk 配置
+
+-DCMAKE_SYSTEM_NAME=Android
+-DANDROID_NDK="G:\software\android-ndk-r20b"
+-DCMAKE_TOOLCHAIN_FILE="G:\software\android-ndk-r20b\build\cmake\android.toolchain.cmake"
+-DANDROID_PLATFORM="android-20"
+-DANDROID_TOOLCHAIN="clang"
+-DCMAKE_C_FLAGS="-fpic -fexceptions -frtti"
+-DCMAKE_CXX_FLAGS="-fpic -fexceptions -frtti"
+-DANDROID_STL="c++_static"
+
+
+-DCMAKE_SYSTEM_NAME=Android
+-DCMAKE_ANDROID_ARCH_ABI=armeabi-v7a
+-DCMAKE_ANDROID_NDK=G:\software\android-ndk-r20b
+-DCMAKE_SYSTEM_VERSION=16
+-DCMAKE_C_FLAGS=""
+-DCMAKE_CXX_FLAGS=""
+-DCMAKE_ANDROID_NDK_TOOLCHAIN_VERSION=clang
+
+
+# centos 安装jdk8
+
+* 下载jdk8 链接：https://pan.baidu.com/s/1Q957PWk0d4wa3BQrt9IU2g 
+提取码：vjd9
+
+* 设置环境变量
+vi /etc/profile
+
+　export JAVA_HOME=/usr/local/bin/jdk1.8.0_221
+　　export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
+　　export PATH=$PATH:$JAVA_HOME/bin
+
+* 使环境变量生效
+source /etc/profile
+
+# shell 图形界面登入
+
+安装 yum install -y xterm
+
+yum  install xorg-x11-xauth
+
+yum install gdm
+
+键盘输入变两个字符 的问题  Xconfig-Advance-Kkeyboard 勾掉
+
+
+# clion 2019.3 激活
+链接：https://pan.baidu.com/s/1bs9_4phDvMvCd-bOFkSoRg 
+提取码：gosh 
+复制这段内容后打开百度网盘手机App，操作更方便哦
+
+# 安装 c/c++ 编译环境
+
+yum install -y gcc gcc-c++ make automake
+
+yum install centos-release-scl scl-utils-build
+yum install -y devtoolset-8-toolchain
+scl enable devtoolset-8 bash
+echo "source /opt/rh/devtoolset-8/enable" >>/etc/profile
+source /etc/profile
+
+
+# cmake 安装
+
+链接：https://pan.baidu.com/s/143G3_zMfyYmyOWD6aozr3A 
+提取码：ryv2 
+复制这段内容后打开百度网盘手机App，操作更方便哦
+
+编译安装
+./bootstrap --prefix=/usr --datadir=share/cmake --docdir=doc/cmake && make
+
+报错
+Could NOT find OpenSSL
+yum install openssl openssl-devel
+
+make install
+
+
+# mariadb 
+
+GRANT ALL PRIVILEGES ON *.* TO 'root'@'%'IDENTIFIED BY 'root' WITH GRANT OPTION;
+
+flush privileges;
+
+systemctl stop firewalld.service 
+
+systemctl disable firewalld.service
+
+# xshell 套件
+
+链接：https://pan.baidu.com/s/1fSuEFG36bmeFe8Q8CBYB8A 
+提取码：9drp 
+
+ln -s /opt/rh/devtoolset-8/root/usr/bin/gdb   /usr/bin/gdb 
+
+
+:cmake "/opt/project/source/mars/mars"
+ -DCMAKE_SYSTEM_NAME=Android  -DANDROID_ABI="x86_64" -DCMAKE_BUILD_TYPE=Debug -DCMAKE_TOOLCHAIN_FILE=/usr/local/bin/android-ndk-r20b/build/cmake/android.toolchain.cmake -DANDROID_TOOLCHAIN=clang -DANDROID_NDK=/usr/local/bin/android-ndk-r20b -DANDROID_PLATFORM=android-14 -DANDROID_STL="c++_shared" 
+ 
+ Release
+ 
+ && cmake --build .  --config Debug -- -j8
 
 
 
+1. 关闭用户图形界面
+sudo systemctl set-default multi-user.target
 
+sudo reboot
+
+ 
+
+2. 开启用户图形界面
+sudo systemctl set-default graphical.target
+
+sudo reboot
+
+
+sudo apt-get install net-tools  # 无法直接安装netstat
+
+
+apt-get install openjdk-8-jdk
+
+
+
+readelf -S  libmarsstn.so | grep debug
