@@ -24,6 +24,8 @@
 
 * <a href="cmake">cmake 使用摘要</a>
 
+* <a href="easyExcel">easyExcel 导出使用</a>
+
 
 https://www.bilibili.com/video/av76127421
 
@@ -878,3 +880,341 @@ apt-get install openjdk-8-jdk
 
 
 readelf -S  libmarsstn.so | grep debug
+
+
+
+
+
+
+# <a name="easyExcel">easyExcel 导出使用</a>
+
+excel 导出常见的类型主要有
+
+* 固定标题头的导出
+
+* 动态标题头的导出
+
+如何使用 easyExcel 对这两种类型的导出
+
+## maven 引入
+```xml
+ <dependency>
+    <groupId>com.alibaba</groupId>
+    <artifactId>easyexcel</artifactId>
+    <version>2.2.5</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi</artifactId>
+    <version>3.17</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml</artifactId>
+    <version>3.17</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml-schemas</artifactId>
+    <version>3.17</version>
+</dependency>
+<dependency>
+    <groupId>org.apache.poi</groupId>
+    <artifactId>poi-ooxml</artifactId>
+    <version>3.17</version>
+</dependency>
+```
+
+1. 固定标题头的导出
+
+![](./res/excelFixedHeader.png)
+
+固定标题头的导出直接采用实体类作为数据的载体，会比较方便
+
+* 定义实体类
+```java
+public class OrderExportResponseVO {
+
+	@ExcelProperty(value = "订单号",index = 0)
+	@ColumnWidth(20)
+	private String orderId;
+
+	@ExcelProperty(value = "总价(元)",index = 1)
+	@ColumnWidth(15)
+	private String totalPrice;
+
+	@ExcelProperty(value = "实付(元)",index = 2)
+	@ColumnWidth(15)
+	//@ContentStyle(shrinkToFit = true)
+	private String payPrice;
+
+		@ExcelProperty(value = "资源关联实例",index = 3)
+	@ColumnWidth(20)
+	private String relatedResourceId;
+}
+```
+@ExcelProperty  定义标题头以及标题头的列 </br>
+@ColumnWidth    定义excel 每一列的宽度
+
+
+* 在我们的示例中最后一列有单元格的合并，故我们定义一个合并的处理器
+```java
+public class BillOrderExportCellMergeStrategy extends AbstractCellWriteHandler {
+
+    /**要合并的列*/
+	private static int  mergeColumnIndex = 17;
+    /**从哪一行开始合并*/
+	private static int mergeRowIndex = 2;
+
+    /**忽略合并的值*/
+	private static String ignoreCellValue = "-";
+
+
+	@Override
+	public void afterCellDispose(WriteSheetHolder writeSheetHolder, WriteTableHolder writeTableHolder,
+								 List<CellData> cellDataList, Cell cell, Head head, Integer relativeRowIndex, Boolean isHead) {
+
+		if(isHead) {
+			return;
+		}
+
+		int curRowIndex = cell.getRowIndex();
+		int curColIndex = cell.getColumnIndex();
+
+		if (curRowIndex >= mergeRowIndex && curColIndex == mergeColumnIndex) {
+			mergeWithPrevRow(writeSheetHolder, cell, curRowIndex, curColIndex);
+		}
+
+	}
+
+
+	private void mergeWithPrevRow(WriteSheetHolder writeSheetHolder, Cell cell, int curRowIndex, int curColIndex) {
+
+		Object curData = cell.getCellTypeEnum() == CellType.STRING ? cell.getStringCellValue() : cell.getNumericCellValue();
+		Cell preCell = cell.getSheet().getRow(curRowIndex - 1).getCell(curColIndex);
+		Object preData = preCell.getCellTypeEnum() == CellType.STRING ? preCell.getStringCellValue() : preCell.getNumericCellValue();
+
+		if(curData == null || ignoreCellValue.equals(curData)){
+			return;
+		}
+
+		if (curData.equals(preData)) {
+			Sheet sheet = writeSheetHolder.getSheet();
+			List<CellRangeAddress> mergeRegions = sheet.getMergedRegions();
+			boolean isMerged = false;
+			for (int i = 0; i < mergeRegions.size() && !isMerged; i++) {
+				CellRangeAddress cellRangeAddr = mergeRegions.get(i);
+				// 若上一个单元格已经被合并，则先移出原有的合并单元，再重新添加合并单元
+				if (cellRangeAddr.isInRange(curRowIndex - 1, curColIndex)) {
+					sheet.removeMergedRegion(i);
+					cellRangeAddr.setLastRow(curRowIndex);
+					sheet.addMergedRegion(cellRangeAddr);
+					isMerged = true;
+				}
+			}
+			// 若上一个单元格未被合并，则新增合并单元
+			if (!isMerged) {
+				CellRangeAddress cellRangeAddress = new CellRangeAddress(curRowIndex - 1, curRowIndex, curColIndex, curColIndex);
+				sheet.addMergedRegion(cellRangeAddress);
+			}
+		}
+	}
+}
+
+```
+
+AbstractCellWriteHandler 是 easyExcel 提供的一个抽象类，每写一个单元格暴露给用户自行处理的接口
+
+* 导出
+```java
+
+/**获取导出的数据*/
+ Optional<List<OrderExportResponseVO>> orderVos = orderExportService.listExportOrder(orderListParamVo);
+ List<OrderExportResponseVO> orderExportResponseVOList = orderVos.orElse(Lists.newArrayList());
+
+/**设置excel名称*/
+String excelName = "order"+".xls";
+String sheetName = "包年包月";
+
+/**数据导出*/
+ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+EasyExcel.write(outputStream, OrderExportResponseVO.class)
+        .autoCloseStream(Boolean.FALSE)
+        .registerWriteHandler(new BillOrderExportCellMergeStrategy())
+        .sheet(sheetName)
+        .doWrite(orderExportResponseVOList);
+
+/**异步下载*/
+asyncExportService.asyncExport(excelName, "application/octet-stream",  outputStream);
+
+```
+
+EasyExcel.write 将数据写入 Excel 并存到 outputStream，这里的 我们定义的是 ByteArrayOutputStream，也可以直接写入到 File 或者 response 的 outpStream</br>
+
+registerWriteHandler 注册监听自定义的处理器，方便我们对 excel 再次处理
+
+</br>
+
+
+
+2. 动态标题头的导出
+![](./res/excelFlexHeader.png)
+
+动态标题头，即标题头不是固定的，随着条件的变化而变化
+
+* 定义标题头
+
+我们的标题头是两行，且第一行是合并行，定义如下
+```java
+    private  List<List<String>> headList(String excelDate,List<String> regionNames){
+        List<List<String>> headTitles = Lists.newArrayList();
+
+        String basicInfo = "账单时间：" + excelDate;
+
+
+        headTitles.add( Lists.newArrayList(basicInfo,"产品种类") );
+        headTitles.add(Lists.newArrayList(basicInfo,"总费用"));
+        if(CollectionUtils.isNotEmpty(regionNames)){
+            for(String regionName : regionNames){
+                headTitles.add(Lists.newArrayList(basicInfo,regionName));
+            }
+            return headTitles;
+        }
+        return headTitles;
+    }
+
+```
+其中 List<String> 是定义每一列，有复合列的话，重复插入即可
+
+* 获取列数据
+ 
+对应标题头，按顺序设置每一列的数据
+```java
+
+List<List<String>> exportResultData = Lists.newArrayList();
+
+List<String> rowData = Lists.newArrayList();
+rowData.add("公网ip费用：元");
+rowData.add("64739.40");
+rowData.add("14124.9600");
+rowData.add("50614.4400");
+
+exportResultData.add(rowData);
+
+...
+
+```
+
+* 设置行样式
+
+在我们的示例中，每三行有一个样式的区别
+```java
+
+public class BillFinanceExportRowStyle extends AbstractCellStyleStrategy {
+
+	private int nextStartStyleRowRatio =  1;
+	private int lastStyleRow = 3;
+
+
+	private WriteCellStyle headWriteCellStyle = null;
+	private WriteCellStyle contentWriteCellStyle = null;
+
+	private CellStyle headCellStyle;
+	private CellStyle contentCellStyle;
+
+
+	public BillFinanceExportRowStyle() {
+
+		headWriteCellStyle = new WriteCellStyle();
+		//headWriteCellStyle.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
+		headWriteCellStyle.setFillForegroundColor(IndexedColors.GREY_25_PERCENT.getIndex());
+		WriteFont headWriteFont = new WriteFont();
+		headWriteFont.setFontName("宋体");
+		headWriteFont.setFontHeightInPoints((short)14);
+		headWriteFont.setBold(true);
+		headWriteCellStyle.setWriteFont(headWriteFont);
+
+
+		contentWriteCellStyle = new WriteCellStyle();
+		contentWriteCellStyle.setFillPatternType(FillPatternType.SOLID_FOREGROUND);
+		contentWriteCellStyle.setFillForegroundColor(IndexedColors.GREY_50_PERCENT.getIndex());
+	}
+
+	@Override
+	protected void initCellStyle(Workbook workbook) {
+
+		if (headWriteCellStyle != null ) {
+			headCellStyle = StyleUtil.buildContentCellStyle(workbook, headWriteCellStyle);
+		}
+
+		if (contentWriteCellStyle != null ) {
+			contentCellStyle = StyleUtil.buildContentCellStyle(workbook, contentWriteCellStyle);
+		}
+	}
+
+
+
+	@Override
+	protected void setHeadCellStyle(Cell cell, Head head, Integer relativeRowIndex) {
+		if (headCellStyle == null) {
+			return;
+		}
+		cell.setCellStyle(headCellStyle);
+	}
+
+
+
+	@Override
+	protected void setContentCellStyle(Cell cell, Head head, Integer relativeRowIndex) {
+		if (contentCellStyle == null ) {
+			return;
+		}
+
+		if((lastStyleRow+3) == relativeRowIndex && cell.getColumnIndex() == 0){
+			nextStartStyleRowRatio = nextStartStyleRowRatio + 2;
+			lastStyleRow = 3 * nextStartStyleRowRatio;
+		}
+
+		if(relativeRowIndex == lastStyleRow || (lastStyleRow+1) == relativeRowIndex || (lastStyleRow+2) == relativeRowIndex){
+			cell.setCellStyle(contentCellStyle);
+		}
+
+	}
+}
+```
+
+* 导出
+```java
+ ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+ExcelWriter excelWriter   =   EasyExcel.write(outputStream)
+        .head(headList)
+        .registerWriteHandler(new BillFinanceExportRowStyle()).build();
+
+WriteSheet writeSheet =    EasyExcel.writerSheet(sheetName).build();
+
+/**设置列宽*/
+Map columnWidth = new HashMap();
+columnWidth.put(0, 10000);
+for(int i =1; i <= regionIds.size(); ++i){
+    columnWidth.put(0, 5000);
+}
+writeSheet.setColumnWidthMap(columnWidth);
+excelWriter.write(exportResultData, writeSheet);
+excelWriter.finish();
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
