@@ -878,3 +878,334 @@ apt-get install openjdk-8-jdk
 
 
 readelf -S  libmarsstn.so | grep debug
+
+
+
+## ubuntu 安装 protobuf
+
+* sudo apt-get install autoconf automake libtool curl make g++ unzip
+* git clone https://github.com/google/protobuf.git
+* cd protobuf
+* ./autogen.sh
+* ./configure
+* make
+* make install
+* ldconfig      # refresh shared library cache.
+
+## 配置动态链接库
+* cd /etc/ld.so.conf.d  新增一个conf文件 包含目录
+
+## 设置
+export LD_LIBRARY_PATH=/usr/local/lib:${LD_LIBRARY_PATH}
+
+####### add protobuf lib path ########
+#(动态库搜索路径) 程序加载运行期间查找动态链接库时指定除了系统默认路径之外的其他路径
+* export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/protobuf/lib/
+#(静态库搜索路径) 程序编译期间查找动态链接库时指定查找共享库的路径
+* export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/protobuf/lib/
+#执行程序搜索路径
+* export PATH=$PATH:/usr/local/protobuf/bin/
+#c程序头文件搜索路径
+* export C_INCLUDE_PATH=$C_INCLUDE_PATH:/usr/local/protobuf/include/
+#c++程序头文件搜索路径
+* export CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH:/usr/local/protobuf/include/
+#pkg-config 路径
+* export PKG_CONFIG_PATH=/usr/local/protobuf/lib/pkgconfig/
+######################################
+
+
+
+
+cmake_minimum_required(VERSION 3.5)  
+  
+set(CMAKE_VERBOSE_MAKEFILE ON)  
+  
+SET(ROOT_PATH ".")  
+SET(PROTO_DIR ${ROOT_PATH}/proto)  
+  
+  
+#PROTOBUF_INCLUDE_DIR和PROTOBUF_LIBRARY两个变量必须设置，貌似可以随便设置，不设置但会提示让你设置，感觉像是bug  
+SET(PROTOBUF_INCLUDE_DIR include)     
+SET(PROTOBUF_LIBRARY .)   
+  
+SET(PROTOBUF_PROTOC_EXECUTABLE ../protoc.exe)  
+  
+#指向protobuf头文件的目录，里面的上层目录是<google>  
+SET(THIRD_INCLUDE_DIR ${ROOT_PATH}/include)  
+  
+#包含protobuf头文件，这里必须设置，如果将PROTOBUF_INCLUDE_DIR指向protobuf头文件，而不设置include_directories，也会报错。  
+include_directories(${THIRD_INCLUDE_DIR})  
+  
+file(GLOB PROTO_LIST ${PROTO_DIR}/*.proto)  
+   
+find_package(Protobuf REQUIRED)  
+protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_LIST})  
+add_library(mylib STATIC ${PROTO_SRCS} ${PROTO_HDRS})  
+target_link_libraries(mylib)  
+
+
+
+方法二： OpenSSL库的安装
+
+　　  去官网下载最新版本 
+
+　　官网：http://www.openssl.org
+
+　　下载页面：http://www.openssl.org/source/
+
+　　选择新版本下载 http://www.openssl.org/source/openssl-1.1.0         或者选择适合的版本，比如我这里需要使用到的是 openssl-1.0.2p
+
+　　  tar -zxv openssl-1.0.2p.tar.gz
+
+　　  cd openssl-1.0.2p/
+
+　　  ./config 
+
+　　  make && make install
+
+　　  ./config shared 
+
+　　  make clean
+
+　　  make  && make install
+
+
+
+
+
+# windows 查看端口号并杀死进程
+netstat -ano|findstr "8080"
+tasklist|findstr "20020"
+taskkill /F /pid   20020
+
+
+
+这个项目需要做什么？
+
+最终目标是完成一个 类似微信的  聊天直播平台
+
+支持web终  android app 终端   苹果手机终端   linux平台终端   windows平台终端  苹果电脑终端
+
+第一步先完成在linux平台终端的文字 图片的发送
+
+功能分为两部分  业务功能  和   支持业务的基础技术
+
+[1] 连接
+  连接的协议：请求连接   连接响应
+
+
+[2]心跳
+
+
+
+[3]
+
+
+# MQTT 协议数据包格式
+mqtt 协议由三部分组成
+
+MQTT |            Description
+---------        |-------
+Fixed Header     | 固定头部 所有的报文都有    
+Variable Header  | 可变头部 部分报文含有       
+Payload          | 内容载体 部分报文含有
+
+# 固定头部报文格式
+
+
+
+其实就是怎么写sdk的问题
+
+上层调用sdk  接口层
+
+现在是linux 的sdk  要提供什么样的方式进行接入
+
+
+
+
+客户端的mars 分为三层
+
+具体的业务层
+
+网络接口层 ： 负责对接业务层
+
+网络层
+
+stn层
+
+
+
+C:\ProgramData\Microsoft\VisualStudio
+
+C:\Program Files\dotnet
+
+C:\Program Files (x86)\Microsoft SDKs
+
+C:\Program Files (x86)\Microsoft SQL Server
+
+C:\Program Files (x86)\Microsoft Visual Studio
+
+C:\Program Files (x86)\NuGet
+
+C:\Program Files (x86)\Windows Kits
+
+
+
+C:\Program Files (x86)\Microsoft SDKs 
+C:\Program Files (x86)\Microsoft Visual Studio 
+C:\Program Files (x86)\Windows Kits 
+C:\ProgramData\Microsoft\VisualStudio 
+C:\ProgramData\Package Cache
+
+
+
+
+
+
+
+
+# android 调试
+本部分为 android 平台下开发对 mars c 代码进行如何调试的说明
+
+本说明书完全是基于 ```ubuntu``` 操作系统环境之下，如在其他平台的操作系统，请自行根据情况修改
+
+
+android ndk 的开发调试这里采用的是 gdb + gdbserver 的方式 </br>
+涉及的开发软件：
+* clion
+* android-studio
+
+
+
+## 1. jdk 环境变量安装
+
+* 下载 jdk
+>地址：https://pan.baidu.com/s/1Q957PWk0d4wa3BQrt9IU2g </br>
+>提取码：vjd9  </br>
+> 解压：将下载的 jdk 解压到 ```/usr/local/bin/``` 
+
+* 设置 jdk 环境变量 </br>
+ 打开文件：vi /etc/profile 在文件的最后面增加   </br>
+>export JAVA_HOME=/usr/local/bin/jdk1.8.0_221  </br>
+export CLASSPATH=.:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar  </br>
+export PATH=$PATH:$JAVA_HOME/bin  </br>
+
+* 使环境变量生效
+> source /etc/profile
+
+
+## 2. cmake 安装
+
+* 下载 cmake
+> 链接：https://pan.baidu.com/s/143G3_zMfyYmyOWD6aozr3A </br>
+> 提取码：ryv2  
+
+* 解压并编译
+> ./bootstrap --prefix=/usr --datadir=share/cmake --docdir=doc/cmake && make
+
+*如在编译的过程中找不到某些库，请根据提示安装对应的库文件，</br>
+如：Could NOT find OpenSSL </br> 
+则: apt install openssl openssl-devel*
+
+
+* 安装
+> make install
+
+
+## 3. gcc g++ 编译环境安装
+>apt-get install build-essential
+
+## 4. 安装 python 2.7
+> apt install python2.7
+
+*如果系统存在 3.0 以上的 python版本 需要改为 2.7 的版本*
+
+## 5. 安装 clion 
+
+* 下载
+>链接：https://pan.baidu.com/s/1GCgM-eY0B3WT6hFC8DhASQ </br>
+>提取码：ihyg </br>
+
+* 激活
+>链接：https://pan.baidu.com/s/1bs9_4phDvMvCd-bOFkSoRg </br> 
+>提取码：gosh </br>
+
+
+## 6. 安装 ndk
+
+* 下载 
+>链接：https://pan.baidu.com/s/1xyFx7PPinD8PUawEEnf1zA  </br>
+>提取码：5bsw </br>
+> 解压：将下载的 jdk 解压到 ```/usr/local/bin/``` 
+
+* 设置环境变量   vi /etc/profile
+>export NDK_ROOT=/usr/local/bin/android-ndk-r20b </br>
+> export PATH=$PATH:/usr/local/bin/android-ndk-r20b </br>
+
+## 7. 安装 studio
+* 下载 
+> 链接：https://pan.baidu.com/s/1OOXtbiaOQvpM00xPMmFnrw </br>
+> 提取码：kb7t </br>
+
+* 设置 android sdk 环境变量 vi /etc/profile
+> export PATH=$PATH:/usr/local/bin/android-sdk/platform-tools
+
+
+</br> </br> </br>
+
+# 调试过程
+1. 启动 server 服务端 </br>
+>进入 mars-demo/Server 目录执行  </br>
+> python start_server.py </br>
+
+2. 启动 clion </br>
+载入 /mars 代码 </br>
+ 编译 android 平台的 so 库  采用 x86_64 的架构 </br>
+ 在clion的终端上执行： python  build_android.py  x86_64 x86_64
+ 编译出来的 so 库 存放在两个位置
+ cmake_build 文件夹下 为可进行调试的 so库
+ libraries 下为 release 版本 不含调试信息
+
+
+3. 启动 android-studio </br>
+载入 mars-demo/android/marsSampleChat 代码
+将 clion  cmake_build 目录下的 so 库 拷贝到 
+marsSampleChat -> SDK -> libs -> x86_64 
+
+[注] android 模拟器的 api 版本 要对应为 x86_64
+
+运行 marsSampleChat
+
+在 ubuntu 终端上 运行 </br>
+>adb  shell </br>
+>进入 android 的shell 后 执行</br>
+> su </br>
+> 查看 marsService 运行的进程 pid </br>
+> ps -a | grep mars  找到 marsService 进程的 pid 后 执行 </br>
+> gdbserver64 :9091 --attach pid
+
+在 ubuntu 上启动另外一个终端 运行
+> adb forward tcp:9091 tcp:9091
+
+
+clion  上设置 GDB Remote Debug 远程调试 </br> 
+>GDB : 不要用默认的，默认的会有问题 </br>
+'target remote' args : tcp:127.0.0.1:9091</br>
+
+即可开始进程远程调试
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
